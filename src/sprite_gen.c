@@ -134,35 +134,81 @@ SDL_Surface* gen_enemy_tank(void) {
 }
 
 SDL_Surface* gen_projectile_player(void) {
-    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormat(0, 6, 12, 32, SDL_PIXELFORMAT_RGBA32);
+    // Larger projectile with glow effect
+    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormat(0, 16, 24, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_FillRect(surf, NULL, SDL_MapRGBA(surf->format, 0, 0, 0, 0));
     
-    // Green plasma bolt
-    for (int y = 0; y < 12; y++) {
-        int width = (y < 6) ? y + 1 : 12 - y;
-        width = width > 3 ? 3 : width;
-        for (int x = 3 - width; x < 3 + width; x++) {
-            Uint8 intensity = 150 + (y * 8);
-            set_pixel(surf, x, y, 100, intensity, 100, 255);
+    int cx = 8, cy = 12;
+    
+    // Outer glow (cyan/blue)
+    for (int r = 6; r >= 4; r--) {
+        Uint8 alpha = 60 - (6-r) * 15;
+        draw_circle(surf, cx, cy, r, 50, 150, 255, alpha);
+    }
+    
+    // Middle glow
+    draw_circle(surf, cx, cy, 4, 100, 200, 255, 180);
+    
+    // Core - bright white/cyan
+    draw_circle(surf, cx, cy, 2, 200, 255, 255, 255);
+    
+    // Energy trail (pointed top and bottom)
+    for (int y = 0; y < 24; y++) {
+        float dist_from_center = fabsf(y - cy) / 12.0f;
+        int width = (int)(3 * (1.0f - dist_from_center));
+        if (width < 1) width = 1;
+        
+        Uint8 intensity = (Uint8)(200 * (1.0f - dist_from_center * 0.5f));
+        Uint8 alpha = (Uint8)(255 * (1.0f - dist_from_center * 0.7f));
+        
+        for (int x = cx - width; x <= cx + width; x++) {
+            // Blend with existing pixels
+            set_pixel(surf, x, y, intensity, 255, 255, alpha);
         }
     }
+    
+    // Bright center line
+    draw_line(surf, cx, 2, cx, 22, 255, 255, 255, 200);
     
     return surf;
 }
 
 SDL_Surface* gen_projectile_enemy(void) {
-    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormat(0, 6, 12, 32, SDL_PIXELFORMAT_RGBA32);
+    // Larger enemy projectile - red/orange plasma
+    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormat(0, 16, 24, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_FillRect(surf, NULL, SDL_MapRGBA(surf->format, 0, 0, 0, 0));
     
-    // Red energy bolt
-    for (int y = 0; y < 12; y++) {
-        int width = (y < 6) ? y + 1 : 12 - y;
-        width = width > 3 ? 3 : width;
-        for (int x = 3 - width; x < 3 + width; x++) {
-            Uint8 intensity = 150 + (y * 8);
-            set_pixel(surf, x, y, intensity, 100, 100, 255);
+    int cx = 8, cy = 12;
+    
+    // Outer glow (orange/red)
+    for (int r = 6; r >= 4; r--) {
+        Uint8 alpha = 60 - (6-r) * 15;
+        draw_circle(surf, cx, cy, r, 255, 100, 50, alpha);
+    }
+    
+    // Middle glow
+    draw_circle(surf, cx, cy, 4, 255, 150, 80, 180);
+    
+    // Core - bright white/orange
+    draw_circle(surf, cx, cy, 2, 255, 220, 200, 255);
+    
+    // Energy trail
+    for (int y = 0; y < 24; y++) {
+        float dist_from_center = fabsf(y - cy) / 12.0f;
+        int width = (int)(3 * (1.0f - dist_from_center));
+        if (width < 1) width = 1;
+        
+        Uint8 intensity = (Uint8)(255 * (1.0f - dist_from_center * 0.5f));
+        Uint8 green = (Uint8)(150 * (1.0f - dist_from_center));
+        Uint8 alpha = (Uint8)(255 * (1.0f - dist_from_center * 0.7f));
+        
+        for (int x = cx - width; x <= cx + width; x++) {
+            set_pixel(surf, x, y, intensity, green, 50, alpha);
         }
     }
+    
+    // Bright center line
+    draw_line(surf, cx, 2, cx, 22, 255, 255, 200, 200);
     
     return surf;
 }

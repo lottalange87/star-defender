@@ -95,8 +95,8 @@ void projectile_spawn(EntityManager* em, EntityType type, float x, float y, floa
             p->pos = vec2(x, y);
             p->vel = vec2(vx, vy);
             p->active = 1;
-            p->width = 6;
-            p->height = 12;
+            p->width = 12;
+            p->height = 20;
             p->sprite = NULL;
             p->rotation = atan2f(vy, vx) * 180.0f / 3.14159f + 90.0f;
             em->projectile_count++;
