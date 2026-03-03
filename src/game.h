@@ -4,6 +4,7 @@
 #include "entity.h"
 #include "particle.h"
 #include "explosion.h"
+#include "projectile.h"
 #include <SDL.h>
 
 typedef enum {
@@ -26,6 +27,7 @@ typedef struct {
     EntityManager entities;
     ParticleSystem particles;
     ExplosionSystem explosions;
+    ProjectileSystem projectiles_visual;
     Entity* player;
     
     // Sprites

@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <math.h>
 
+SpawnVisualProjectileFunc g_spawn_visual_projectile = NULL;
+
+void entity_set_visual_projectile_callback(SpawnVisualProjectileFunc func) {
+    g_spawn_visual_projectile = func;
+}
+
 void entity_manager_init(EntityManager* em) {
     em->entity_count = 0;
     em->projectile_count = 0;
@@ -132,6 +138,9 @@ void entity_update(EntityManager* em, float dt, ParticleSystem* ps, int screen_w
             if (e->shoot_timer > 2.0f + (rand() % 100) / 100.0f) {
                 e->shoot_timer = 0;
                 projectile_spawn(em, ENTITY_PROJECTILE_ENEMY, e->pos.x, e->pos.y + e->height/2, 0, 200.0f);
+                if (g_spawn_visual_projectile) {
+                    g_spawn_visual_projectile(vec2(e->pos.x, e->pos.y + e->height/2), vec2(0, 200.0f), 1);
+                }
             }
             
             // Remove if off screen

@@ -4,10 +4,17 @@
 #include "math.h"
 #include "sprite.h"
 #include "particle.h"
+#include "projectile.h"
 #include <SDL.h>
 
 #define MAX_ENTITIES 100
 #define MAX_PROJECTILES 50
+
+// Callback for spawning visual projectiles
+typedef void (*SpawnVisualProjectileFunc)(Vec2 pos, Vec2 vel, int type);
+extern SpawnVisualProjectileFunc g_spawn_visual_projectile;
+
+void entity_set_visual_projectile_callback(SpawnVisualProjectileFunc func);
 
 typedef enum {
     ENTITY_PLAYER,

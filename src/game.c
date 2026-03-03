@@ -4,6 +4,15 @@
 #include <stdlib.h>
 #include <math.h>
 
+// Wrapper to spawn visual projectiles from entity.c
+static Game* g_current_game = NULL;
+
+static void spawn_visual_wrapper(Vec2 pos, Vec2 vel, int type) {
+    if (g_current_game) {
+        projectile_spawn_visual(&g_current_game->projectiles_visual, pos, vel, type);
+    }
+}
+
 int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     game->screen_width = screen_w;
     game->screen_height = screen_h;
@@ -12,7 +21,12 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     entity_manager_init(&game->entities);
     particle_system_init(&game->particles);
     explosion_system_init(&game->explosions);
+    projectile_system_init(&game->projectiles_visual);
     explosion_system_load(&game->explosions, renderer);
+    
+    // Set up visual projectile callback
+    g_current_game = game;
+    entity_set_visual_projectile_callback(spawn_visual_wrapper);
     
     // Generate sprites
     SDL_Surface* surf;
@@ -170,12 +184,21 @@ void game_update(Game* game, float dt) {
                 case 1:
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
                                     game->player->pos.x, game->player->pos.y - 16, 0, -500.0f);
+                    projectile_spawn_visual(&game->projectiles_visual,
+                                    vec2(game->player->pos.x, game->player->pos.y - 16),
+                                    vec2(0, -500.0f), 0);
                     break;
                 case 2:
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
                                     game->player->pos.x - 8, game->player->pos.y - 16, 0, -500.0f);
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
                                     game->player->pos.x + 8, game->player->pos.y - 16, 0, -500.0f);
+                    projectile_spawn_visual(&game->projectiles_visual,
+                                    vec2(game->player->pos.x - 8, game->player->pos.y - 16),
+                                    vec2(0, -500.0f), 0);
+                    projectile_spawn_visual(&game->projectiles_visual,
+                                    vec2(game->player->pos.x + 8, game->player->pos.y - 16),
+                                    vec2(0, -500.0f), 0);
                     break;
                 case 3:
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
@@ -184,6 +207,15 @@ void game_update(Game* game, float dt) {
                                     game->player->pos.x - 12, game->player->pos.y - 12, -50.0f, -480.0f);
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
                                     game->player->pos.x + 12, game->player->pos.y - 12, 50.0f, -480.0f);
+                    projectile_spawn_visual(&game->projectiles_visual,
+                                    vec2(game->player->pos.x, game->player->pos.y - 16),
+                                    vec2(0, -500.0f), 0);
+                    projectile_spawn_visual(&game->projectiles_visual,
+                                    vec2(game->player->pos.x - 12, game->player->pos.y - 12),
+                                    vec2(-50.0f, -480.0f), 0);
+                    projectile_spawn_visual(&game->projectiles_visual,
+                                    vec2(game->player->pos.x + 12, game->player->pos.y - 12),
+                                    vec2(50.0f, -480.0f), 0);
                     break;
             }
         }
@@ -229,6 +261,7 @@ void game_update(Game* game, float dt) {
     projectile_update(&game->entities, dt, game->screen_width, game->screen_height);
     particle_update(&game->particles, dt);
     explosion_update(&game->explosions, dt);
+    projectile_update_visuals(&game->projectiles_visual, dt);
     
     for (int i = 0; i < 100; i++) {
         game->stars[i].y += game->stars[i].speed * dt;
@@ -265,7 +298,9 @@ void game_draw(Game* game, SDL_Renderer* renderer) {
     }
     
     entity_draw(&game->entities, renderer);
-    projectile_draw(&game->entities, renderer);
+    // Don't draw old projectiles - we use fancy visual ones instead
+    // projectile_draw(&game->entities, renderer);
+    projectile_draw_visuals(&game->projectiles_visual, renderer);
     particle_draw(&game->particles, renderer);
     explosion_draw(&game->explosions, renderer);
     
