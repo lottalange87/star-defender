@@ -283,8 +283,14 @@ void background_draw(Background* bg, SDL_Renderer* renderer, int screen_w, int s
     SDL_SetRenderDrawColor(renderer, 5, 5, 15, 255);
     SDL_RenderClear(renderer);
     
+    // Enable alpha blending for nebula
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    
     // Draw layers from back to front
     background_draw_nebula(bg, renderer, screen_w, screen_h);
     background_draw_planets(bg, renderer, screen_w, screen_h);
     background_draw_starfield(bg, renderer, screen_w, screen_h);
+    
+    // Reset blend mode
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 }

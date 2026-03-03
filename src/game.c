@@ -346,6 +346,9 @@ void game_update(Game* game, float dt) {
 }
 
 void game_draw(Game* game, SDL_Renderer* renderer) {
+    // Ensure blend mode is reset at start
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    
     // Draw based on state
     if (game->state == STATE_MENU && game->use_menu) {
         // Draw menu with animated background
@@ -353,6 +356,9 @@ void game_draw(Game* game, SDL_Renderer* renderer) {
     } else {
         // Draw game with new background
         background_draw(&game->background, renderer, game->screen_width, game->screen_height);
+        
+        // Reset blend mode after background
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
         
         // Draw game entities
         entity_draw(&game->entities, renderer);

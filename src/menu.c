@@ -149,6 +149,9 @@ void menu_draw(MenuSystem* menu, SDL_Renderer* renderer, int screen_w, int scree
     background_draw(&menu->bg, renderer, screen_w, screen_h);
     background_update(&menu->bg, 0.016f, screen_w, screen_h); // Update at ~60fps
     
+    // Reset blend mode after background
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    
     // Draw title
     menu_draw_title(renderer, screen_w, 80);
     
@@ -176,8 +179,10 @@ void menu_draw(MenuSystem* menu, SDL_Renderer* renderer, int screen_w, int scree
     
     // Fade overlay for transition
     if (menu->transition_alpha > 0) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(menu->transition_alpha * 255));
         SDL_Rect overlay = {0, 0, screen_w, screen_h};
         SDL_RenderFillRect(renderer, &overlay);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 }

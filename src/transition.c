@@ -81,6 +81,9 @@ void transition_draw_star_warp(Transition* t, SDL_Renderer* renderer, int screen
 void transition_draw(Transition* t, SDL_Renderer* renderer, int screen_w, int screen_h) {
     if (!t->active && t->progress <= 0) return;
     
+    // Enable alpha blending
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    
     switch (t->type) {
         case TRANSITION_FADE_OUT:
         case TRANSITION_FADE_IN:
@@ -95,4 +98,7 @@ void transition_draw(Transition* t, SDL_Renderer* renderer, int screen_w, int sc
         default:
             break;
     }
+    
+    // Reset blend mode
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 }
