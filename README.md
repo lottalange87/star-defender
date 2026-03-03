@@ -1,68 +1,61 @@
-# Star Defender
+# Star Defender - Graphics Edition
 
-A fast-paced terminal-based space shooter written in pure C. No external dependencies—just standard library and ANSI escape codes.
+Ein grafischer Space-Shooter in C mit SDL2. Keine Engine – alles selbst gebaut.
 
 ## Features
 
-- 🚀 Real-time smooth gameplay (~30 FPS)
-- 👾 3 enemy types with different behaviors:
-  - **Normal** (red V) - Standard speed
-  - **Fast** (magenta v) - Quick zigzag movement
-  - **Tank** (yellow W) - Takes 3 hits, wider hitbox
-- 💥 Particle explosion effects
-- 🔫 Weapon upgrades (every 500 points):
-  - Level 1: Single shot
-  - Level 2: Dual shot
-  - Level 3: Triple shot
-- 🌊 Progressive difficulty (waves get harder)
-- 🎮 Keyboard controls:
-  - **WASD** or **Arrow keys** - Move ship
-  - **SPACE** - Shoot
-  - **Q** - Quit
-  - **R** - Restart (after game over)
+- 🚀 **Eigene Sprite-Engine** - Texture loading, Animation, Rotation
+- 💥 **Partikel-System** - Explosionen, Thruster-Effekte
+- 🎮 **3 Gegnertypen** - Normal, Fast (Zickzack), Tank (3 Treffer)
+- 🔫 **Waffen-Upgrades** - Single → Dual → Triple Shot (alle 500 Punkte)
+- 🌌 **Parallax-Sterne** - Tiefe durch verschiedene Geschwindigkeiten
+- ⚡ **Fixed Timestep** - Konstante 60 FPS Game Logic
 
-## Build & Run
+## Steuerung
+
+| Taste | Aktion |
+|-------|--------|
+| WASD / Pfeiltasten | Bewegen |
+| Leertaste | Schießen |
+| Enter | Start / Neustart |
+| ESC | Pause |
+| Q | Beenden |
+
+## Bauen
 
 ```bash
-# Compile
-make
-
-# Or manually:
-gcc -Wall -Wextra -O2 -o star_defender main.c
-
-# Run
-./star_defender
+make          # Release build
+make debug    # Debug build
+make clean    # Aufräumen
+make run      # Bauen & starten
 ```
 
-## How to Play
+## Projektstruktur
 
-1. Your ship starts at the bottom
-2. Enemies spawn from the top and move down
-3. Shoot them before they reach the bottom
-4. Avoid collisions—3 lives only!
-5. Survive as long as you can!
+```
+src/
+├── math.h/c       - Vektor-Mathematik
+├── sprite.h/c     - Sprite loading & rendering
+├── particle.h/c   - Partikel-System
+├── entity.h/c     - Spieler, Gegner, Projektile
+├── game.h/c       - Game State, Loop, Kollisionen
+└── main.c         - Entry point
+```
 
-## Score System
+## Technische Details
 
-| Enemy Type | Points |
-|------------|--------|
-| Normal     | 10     |
-| Fast       | 20     |
-| Tank       | 50     |
+- **Rendering:** SDL2 Hardware-Accelerated
+- **Sprites:** SDL_image für PNG/JPG
+- **Partikel:** 1000 Partikel max, Alpha-Blending
+- **Kollision:** AABB (Axis-Aligned Bounding Box)
+- **Game Loop:** Fixed timestep mit Accumulator
 
-## Technical Details
+## Abhängigkeiten
 
-- **Rendering:** ANSI escape codes (no ncurses needed)
-- **Input:** Raw terminal mode with non-blocking reads
-- **Target FPS:** ~30 frames per second
-- **Terminal Size:** Optimized for 60×24 characters
-
-## Requirements
-
-- Unix-like system (Linux/macOS)
-- Terminal with ANSI color support
-- C compiler (gcc/clang)
+```bash
+brew install sdl2 sdl2_image
+```
 
 ---
 
-*Written from scratch in ~450 lines of C*
+*Ursprünglich ein Terminal-Spiel, komplett neu als Grafik-Version gebaut.*
