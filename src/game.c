@@ -1,16 +1,59 @@
 #include "game.h"
+#include "sprite_gen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-int game_init(Game* game, int screen_w, int screen_h) {
+int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     game->screen_width = screen_w;
     game->screen_height = screen_h;
     game->state = STATE_MENU;
     
     entity_manager_init(&game->entities);
     particle_system_init(&game->particles);
+    explosion_system_init(&game->explosions);
+    explosion_system_load(&game->explosions, renderer);
     
+    // Generate sprites
+    SDL_Surface* surf;
+    
+    surf = gen_player_ship();
+    game->sprite_player = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    surf = gen_enemy_normal();
+    game->sprite_enemy_normal = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    surf = gen_enemy_fast();
+    game->sprite_enemy_fast = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    surf = gen_enemy_tank();
+    game->sprite_enemy_tank = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    surf = gen_projectile_player();
+    game->sprite_projectile_player = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    surf = gen_projectile_enemy();
+    game->sprite_projectile_enemy = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    surf = gen_powerup();
+    game->sprite_powerup = sprite_from_surface(renderer, surf);
+    SDL_FreeSurface(surf);
+    
+    // Assign sprites to entities
+    for (int i = 0; i < MAX_ENTITIES; i++) {
+        game->entities.entities[i].sprite = NULL;
+    }
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        game->entities.projectiles[i].sprite = NULL;
+    }
+    
+    // Init stars
     for (int i = 0; i < 100; i++) {
         game->stars[i].x = rand() % screen_w;
         game->stars[i].y = rand() % screen_h;
@@ -23,6 +66,14 @@ int game_init(Game* game, int screen_w, int screen_h) {
 }
 
 void game_shutdown(Game* game) {
+    sprite_free(game->sprite_player);
+    sprite_free(game->sprite_enemy_normal);
+    sprite_free(game->sprite_enemy_fast);
+    sprite_free(game->sprite_enemy_tank);
+    sprite_free(game->sprite_projectile_player);
+    sprite_free(game->sprite_projectile_enemy);
+    sprite_free(game->sprite_powerup);
+    explosion_system_free(&game->explosions);
 }
 
 void game_reset(Game* game) {
@@ -36,9 +87,13 @@ void game_reset(Game* game) {
     entity_manager_init(&game->entities);
     particle_system_init(&game->particles);
     
+    // Spawn player
     game->player = entity_spawn(&game->entities, ENTITY_PLAYER, 
                                  game->screen_width / 2.0f, 
                                  game->screen_height - 80.0f);
+    if (game->player) {
+        game->player->sprite = game->sprite_player;
+    }
 }
 
 void game_handle_input(Game* game, SDL_Event* event) {
@@ -101,9 +156,10 @@ void game_update(Game* game, float dt) {
             game->player->pos.x = fmaxf(20, fminf(game->screen_width - 20, game->player->pos.x));
             game->player->pos.y = fmaxf(20, fminf(game->screen_height - 20, game->player->pos.y));
             
-            particle_spawn_thruster(&game->particles, 
-                                   vec2(game->player->pos.x, game->player->pos.y + 16),
-                                   3.14159f / 2.0f);
+            particle_spawn_thruster(
+                &game->particles, 
+                vec2(game->player->pos.x, game->player->pos.y + 16),
+                3.14159f / 2.0f);
         }
         
         game->shoot_cooldown -= dt;
@@ -143,12 +199,23 @@ void game_update(Game* game, float dt) {
         int x = 40 + (rand() % (game->screen_width - 80));
         
         int roll = rand() % 100;
+        EntityType type;
+        Sprite* sprite;
+        
         if (roll < 60) {
-            entity_spawn(&game->entities, ENTITY_ENEMY_NORMAL, x, -30);
+            type = ENTITY_ENEMY_NORMAL;
+            sprite = game->sprite_enemy_normal;
         } else if (roll < 85) {
-            entity_spawn(&game->entities, ENTITY_ENEMY_FAST, x, -30);
+            type = ENTITY_ENEMY_FAST;
+            sprite = game->sprite_enemy_fast;
         } else {
-            entity_spawn(&game->entities, ENTITY_ENEMY_TANK, x, -30);
+            type = ENTITY_ENEMY_TANK;
+            sprite = game->sprite_enemy_tank;
+        }
+        
+        Entity* e = entity_spawn(&game->entities, type, x, -30);
+        if (e) {
+            e->sprite = sprite;
         }
     }
     
@@ -161,6 +228,7 @@ void game_update(Game* game, float dt) {
     entity_update(&game->entities, dt, &game->particles, game->screen_width, game->screen_height);
     projectile_update(&game->entities, dt, game->screen_width, game->screen_height);
     particle_update(&game->particles, dt);
+    explosion_update(&game->explosions, dt);
     
     for (int i = 0; i < 100; i++) {
         game->stars[i].y += game->stars[i].speed * dt;
@@ -177,6 +245,7 @@ void game_draw(Game* game, SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, 5, 5, 15, 255);
     SDL_RenderClear(renderer);
     
+    // Stars
     for (int i = 0; i < 100; i++) {
         int alpha = 100 + (int)(game->stars[i].speed * 1.5f);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, alpha > 255 ? 255 : alpha);
@@ -185,25 +254,26 @@ void game_draw(Game* game, SDL_Renderer* renderer) {
         SDL_RenderFillRect(renderer, &star);
     }
     
+    // Assign sprites to projectiles before drawing
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        Entity* p = &game->entities.projectiles[i];
+        if (p->active && !p->sprite) {
+            p->sprite = (p->type == ENTITY_PROJECTILE_PLAYER) 
+                ? game->sprite_projectile_player 
+                : game->sprite_projectile_enemy;
+        }
+    }
+    
     entity_draw(&game->entities, renderer);
     projectile_draw(&game->entities, renderer);
     particle_draw(&game->particles, renderer);
+    explosion_draw(&game->explosions, renderer);
     
     // HUD
     char hud[128];
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     
-    // Score
-    snprintf(hud, sizeof(hud), "SCORE: %d", game->score);
-    // TODO: render text
-    
-    // Lives
-    snprintf(hud, sizeof(hud), "LIVES: %d", game->lives);
-    
-    // Wave
-    snprintf(hud, sizeof(hud), "WAVE: %d", game->wave);
-    
-    // Menu / Game Over screens
+    // Menu / Game Over / Pause screens
     if (game->state == STATE_MENU) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
         SDL_Rect overlay = {0, 0, game->screen_width, game->screen_height};
@@ -232,6 +302,12 @@ void game_check_collisions(Game* game) {
             
             if (entity_check_collision(proj, enemy)) {
                 proj->active = 0;
+                
+                // Spawn explosion
+                float scale = 1.0f;
+                if (enemy->type == ENTITY_ENEMY_TANK) scale = 1.5f;
+                explosion_spawn(&game->explosions, enemy->pos, scale);
+                
                 entity_take_damage(enemy, 1, &game->particles);
                 
                 if (!enemy->active) {
@@ -256,11 +332,11 @@ void game_check_collisions(Game* game) {
         
         if (game->player && game->player->active && entity_check_collision(proj, game->player)) {
             proj->active = 0;
+            explosion_spawn(&game->explosions, game->player->pos, 0.8f);
             entity_take_damage(game->player, 1, &game->particles);
             game->lives--;
             
             if (game->player->hp <= 0 && game->lives > 0) {
-                // Respawn
                 game->player->hp = 3;
                 game->player->pos.x = game->screen_width / 2.0f;
                 game->player->pos.y = game->screen_height - 80.0f;
@@ -278,6 +354,7 @@ void game_check_collisions(Game* game) {
             enemy->type > ENTITY_ENEMY_TANK) continue;
         
         if (game->player && game->player->active && entity_check_collision(enemy, game->player)) {
+            explosion_spawn(&game->explosions, enemy->pos, 1.2f);
             entity_take_damage(enemy, 10, &game->particles);
             entity_take_damage(game->player, 1, &game->particles);
             game->lives--;

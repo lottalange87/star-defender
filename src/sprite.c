@@ -31,6 +31,21 @@ Sprite* sprite_load(SDL_Renderer* renderer, const char* path, int frame_width, i
     return sprite;
 }
 
+Sprite* sprite_from_surface(SDL_Renderer* renderer, SDL_Surface* surface) {
+    if (!surface) return NULL;
+    
+    Sprite* sprite = malloc(sizeof(Sprite));
+    sprite->texture = SDL_CreateTextureFromSurface(renderer, surface);
+    sprite->width = surface->w;
+    sprite->height = surface->h;
+    sprite->frame_width = surface->w;
+    sprite->frame_height = surface->h;
+    sprite->columns = 1;
+    sprite->frame_count = 1;
+    
+    return sprite;
+}
+
 void sprite_free(Sprite* sprite) {
     if (sprite) {
         SDL_DestroyTexture(sprite->texture);
@@ -52,8 +67,8 @@ void sprite_draw(SDL_Renderer* renderer, Sprite* sprite, int frame, float x, flo
     };
     
     SDL_Rect dst = {
-        (int)x,
-        (int)y,
+        (int)(x - (sprite->frame_width * scale) / 2),
+        (int)(y - (sprite->frame_height * scale) / 2),
         (int)(sprite->frame_width * scale),
         (int)(sprite->frame_height * scale)
     };

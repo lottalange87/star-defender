@@ -1,4 +1,4 @@
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "game.h"
@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     
     Game game;
-    if (!game_init(&game, SCREEN_WIDTH, SCREEN_HEIGHT)) {
+    if (!game_init(&game, SCREEN_WIDTH, SCREEN_HEIGHT, renderer)) {
         fprintf(stderr, "Game init failed\n");
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
@@ -65,7 +65,6 @@ int main(int argc, char* argv[]) {
         float dt = (current_time - last_time) / 1000.0f;
         last_time = current_time;
         
-        // Cap dt to prevent spiral of death
         if (dt > 0.1f) dt = 0.1f;
         
         SDL_Event event;
@@ -80,14 +79,12 @@ int main(int argc, char* argv[]) {
             }
         }
         
-        // Fixed timestep update
         accumulator += dt;
         while (accumulator >= FRAME_TIME) {
             game_update(&game, FRAME_TIME);
             accumulator -= FRAME_TIME;
         }
         
-        // Render
         game_draw(&game, renderer);
         SDL_RenderPresent(renderer);
     }
