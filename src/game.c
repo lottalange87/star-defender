@@ -28,9 +28,10 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     projectile_system_init(&game->projectiles_visual);
     explosion_system_load(&game->explosions, renderer);
     
-    // Initialize audio and UI
+    // Initialize systems
     audio_init(&game->audio);
     ui_init(&game->ui);
+    loot_system_init(&game->loot);
     
     // Set up visual projectile callback
     g_current_game = game;
@@ -90,6 +91,8 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
 void game_shutdown(Game* game) {
     ui_shutdown(&game->ui);
     audio_shutdown(&game->audio);
+    // loot_system has no shutdown needed
+    
     sprite_free(game->sprite_player);
     sprite_free(game->sprite_enemy_normal);
     sprite_free(game->sprite_enemy_fast);
@@ -187,8 +190,9 @@ void game_update(Game* game, float dt) {
         }
         
         game->shoot_cooldown -= dt;
+        float fire_rate = (game->loot.rapid_fire_timer > 0) ? 0.05f : 0.15f;
         if (game->key_shoot && game->shoot_cooldown <= 0) {
-            game->shoot_cooldown = 0.15f;
+            game->shoot_cooldown = fire_rate;
             
             switch (game->player->weapon_level) {
                 case 1:
@@ -278,6 +282,7 @@ void game_update(Game* game, float dt) {
     particle_update(&game->particles, dt);
     explosion_update(&game->explosions, dt);
     projectile_update_visuals(&game->projectiles_visual, dt);
+    loot_update(&game->loot, dt, &game->entities, &game->particles);
     
     for (int i = 0; i < 100; i++) {
         game->stars[i].y += game->stars[i].speed * dt;
@@ -314,6 +319,7 @@ void game_draw(Game* game, SDL_Renderer* renderer) {
     }
     
     entity_draw(&game->entities, renderer);
+    loot_draw(&game->loot, renderer);
     projectile_draw_visuals(&game->projectiles_visual, renderer);
     particle_draw(&game->particles, renderer);
     explosion_draw(&game->explosions, renderer);
@@ -365,7 +371,10 @@ void game_check_collisions(Game* game) {
                 }
                 
                 if (!enemy->active) {
-                    game->score += enemy->score_value;
+                    game->score += enemy->score_value * (int)game->loot.score_multiplier;
+                    
+                    // Spawn loot box
+                    loot_spawn(&game->loot, enemy->pos);
                     
                     // Weapon upgrade every 500 points
                     if (game->score / 500 > (game->score - enemy->score_value) / 500) {
@@ -399,6 +408,23 @@ void game_check_collisions(Game* game) {
                 game->player->weapon_level = 1;
             }
             break;
+        }
+    }
+    
+    // Loot boxes vs player
+    if (game->player && game->player->active) {
+        for (int i = 0; i < MAX_LOOTBOXES; i++) {
+            LootBox* box = &game->loot.boxes[i];
+            if (!box->active || box->opened) continue;
+            
+            // Simple distance check
+            float dx = box->pos.x - game->player->pos.x;
+            float dy = box->pos.y - game->player->pos.y;
+            float dist = sqrtf(dx*dx + dy*dy);
+            
+            if (dist < 30.0f) { // Collection radius
+                loot_collect(box, game->player, &game->loot, &game->entities, &game->particles);
+            }
         }
     }
     

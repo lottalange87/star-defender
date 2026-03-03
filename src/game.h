@@ -7,6 +7,7 @@
 #include "projectile.h"
 #include "audio.h"
 #include "ui.h"
+#include "lootbox.h"
 #include <SDL.h>
 
 typedef enum {
@@ -32,6 +33,7 @@ typedef struct {
     ProjectileSystem projectiles_visual;
     AudioSystem audio;
     UISystem ui;
+    LootSystem loot;
     Entity* player;
     
     // Sprites
