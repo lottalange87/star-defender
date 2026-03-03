@@ -42,6 +42,10 @@ typedef struct {
     float rotation;
     int weapon_level;
     int score_value;
+    
+    // Visual effects
+    float damage_flash;     // Flash timer when hit
+    float muzzle_flash;     // Muzzle flash timer when shooting
 } Entity;
 
 typedef struct {

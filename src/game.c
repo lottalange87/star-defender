@@ -28,8 +28,9 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     projectile_system_init(&game->projectiles_visual);
     explosion_system_load(&game->explosions, renderer);
     
-    // Initialize audio
+    // Initialize audio and UI
     audio_init(&game->audio);
+    ui_init(&game->ui);
     
     // Set up visual projectile callback
     g_current_game = game;
@@ -87,6 +88,7 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
 }
 
 void game_shutdown(Game* game) {
+    ui_shutdown(&game->ui);
     audio_shutdown(&game->audio);
     sprite_free(game->sprite_player);
     sprite_free(game->sprite_enemy_normal);
@@ -195,6 +197,7 @@ void game_update(Game* game, float dt) {
                     projectile_spawn_visual(&game->projectiles_visual,
                                     vec2(game->player->pos.x, game->player->pos.y - 16),
                                     vec2(0, -500.0f), 0);
+                    game->player->muzzle_flash = 1.0f;
                     audio_play_sound(&game->audio, SOUND_LASER_PLAYER);
                     break;
                 case 2:
@@ -208,6 +211,7 @@ void game_update(Game* game, float dt) {
                     projectile_spawn_visual(&game->projectiles_visual,
                                     vec2(game->player->pos.x + 8, game->player->pos.y - 16),
                                     vec2(0, -500.0f), 0);
+                    game->player->muzzle_flash = 1.0f;
                     audio_play_sound(&game->audio, SOUND_LASER_PLAYER);
                     break;
                 case 3:
@@ -226,6 +230,7 @@ void game_update(Game* game, float dt) {
                     projectile_spawn_visual(&game->projectiles_visual,
                                     vec2(game->player->pos.x + 12, game->player->pos.y - 12),
                                     vec2(50.0f, -480.0f), 0);
+                    game->player->muzzle_flash = 1.0f;
                     audio_play_sound(&game->audio, SOUND_LASER_PLAYER);
                     break;
             }
@@ -309,29 +314,25 @@ void game_draw(Game* game, SDL_Renderer* renderer) {
     }
     
     entity_draw(&game->entities, renderer);
-    // Don't draw old projectiles - we use fancy visual ones instead
-    // projectile_draw(&game->entities, renderer);
     projectile_draw_visuals(&game->projectiles_visual, renderer);
     particle_draw(&game->particles, renderer);
     explosion_draw(&game->explosions, renderer);
     
-    // HUD
-    char hud[128];
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    // HUD with new UI system
+    if (game->state == STATE_PLAYING) {
+        ui_draw_hud(&game->ui, renderer, game->score, game->lives, 
+                   game->wave, game->player ? game->player->weapon_level : 1,
+                   game->screen_width);
+    }
     
     // Menu / Game Over / Pause screens
     if (game->state == STATE_MENU) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
-        SDL_Rect overlay = {0, 0, game->screen_width, game->screen_height};
-        SDL_RenderFillRect(renderer, &overlay);
+        ui_draw_menu(&game->ui, renderer, game->screen_width, game->screen_height);
     } else if (game->state == STATE_GAMEOVER) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
-        SDL_Rect overlay = {0, 0, game->screen_width, game->screen_height};
-        SDL_RenderFillRect(renderer, &overlay);
+        ui_draw_gameover(&game->ui, renderer, game->score, 
+                        game->screen_width, game->screen_height);
     } else if (game->state == STATE_PAUSE) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
-        SDL_Rect overlay = {0, 0, game->screen_width, game->screen_height};
-        SDL_RenderFillRect(renderer, &overlay);
+        ui_draw_pause(&game->ui, renderer, game->screen_width, game->screen_height);
     }
 }
 

@@ -116,6 +116,16 @@ void entity_update(EntityManager* em, float dt, ParticleSystem* ps, int screen_w
         Entity* e = &em->entities[i];
         if (!e->active) continue;
         
+        // Decay flash timers
+        if (e->damage_flash > 0) {
+            e->damage_flash -= dt * 5.0f; // Decay over 0.2s
+            if (e->damage_flash < 0) e->damage_flash = 0;
+        }
+        if (e->muzzle_flash > 0) {
+            e->muzzle_flash -= dt * 10.0f; // Decay over 0.1s
+            if (e->muzzle_flash < 0) e->muzzle_flash = 0;
+        }
+        
         // Movement
         e->pos = vec2_add(e->pos, vec2_mul(e->vel, dt));
         
@@ -138,6 +148,7 @@ void entity_update(EntityManager* em, float dt, ParticleSystem* ps, int screen_w
             if (e->shoot_timer > 2.0f + (rand() % 100) / 100.0f) {
                 e->shoot_timer = 0;
                 projectile_spawn(em, ENTITY_PROJECTILE_ENEMY, e->pos.x, e->pos.y + e->height/2, 0, 200.0f);
+                e->muzzle_flash = 1.0f; // Trigger muzzle flash
                 if (g_spawn_visual_projectile) {
                     g_spawn_visual_projectile(vec2(e->pos.x, e->pos.y + e->height/2), vec2(0, 200.0f), 1);
                 }
@@ -165,33 +176,63 @@ void entity_draw(EntityManager* em, SDL_Renderer* renderer) {
         Entity* e = &em->entities[i];
         if (!e->active) continue;
         
+        // Draw muzzle flash for enemies
+        if (e->muzzle_flash > 0 && e->type >= ENTITY_ENEMY_NORMAL && e->type <= ENTITY_ENEMY_TANK) {
+            float flash_size = e->muzzle_flash * 20.0f;
+            Uint8 alpha = (Uint8)(e->muzzle_flash * 255);
+            
+            SDL_SetRenderDrawColor(renderer, 255, 200, 100, alpha);
+            SDL_Rect flash = {
+                (int)(e->pos.x - flash_size/2),
+                (int)(e->pos.y + e->height/2),
+                (int)flash_size,
+                (int)(flash_size * 1.5f)
+            };
+            SDL_RenderFillRect(renderer, &flash);
+        }
+        
+        // Calculate draw color with damage flash
+        SDL_Color base_color;
+        SDL_Color flash_color = {255, 255, 255, 255};
+        
+        switch (e->type) {
+            case ENTITY_PLAYER:
+                base_color = (SDL_Color){0, 200, 255, 255};
+                break;
+            case ENTITY_ENEMY_NORMAL:
+                base_color = (SDL_Color){255, 80, 80, 255};
+                break;
+            case ENTITY_ENEMY_FAST:
+                base_color = (SDL_Color){255, 80, 255, 255};
+                break;
+            case ENTITY_ENEMY_TANK:
+                base_color = (SDL_Color){255, 200, 80, 255};
+                break;
+            case ENTITY_POWERUP:
+                base_color = (SDL_Color){80, 255, 80, 255};
+                break;
+            default:
+                base_color = (SDL_Color){200, 200, 200, 255};
+        }
+        
+        // Blend with flash color if damaged
+        if (e->damage_flash > 0) {
+            float t = e->damage_flash;
+            base_color.r = (Uint8)(base_color.r * (1-t) + flash_color.r * t);
+            base_color.g = (Uint8)(base_color.g * (1-t) + flash_color.g * t);
+            base_color.b = (Uint8)(base_color.b * (1-t) + flash_color.b * t);
+        }
+        
         if (e->sprite) {
+            // Use tinted drawing for damage flash
+            SDL_SetTextureColorMod(e->sprite->texture, base_color.r, base_color.g, base_color.b);
             sprite_draw(renderer, e->sprite, e->frame % e->sprite->frame_count,
                        e->pos.x - e->width/2, e->pos.y - e->height/2, 1.0f, e->rotation, SDL_FLIP_NONE);
+            SDL_SetTextureColorMod(e->sprite->texture, 255, 255, 255);
         } else {
-            // Fallback: colored rectangles
             SDL_Rect rect = {(int)(e->pos.x - e->width/2), (int)(e->pos.y - e->height/2),
                            (int)e->width, (int)e->height};
-            
-            switch (e->type) {
-                case ENTITY_PLAYER:
-                    SDL_SetRenderDrawColor(renderer, 0, 200, 255, 255);
-                    break;
-                case ENTITY_ENEMY_NORMAL:
-                    SDL_SetRenderDrawColor(renderer, 255, 80, 80, 255);
-                    break;
-                case ENTITY_ENEMY_FAST:
-                    SDL_SetRenderDrawColor(renderer, 255, 80, 255, 255);
-                    break;
-                case ENTITY_ENEMY_TANK:
-                    SDL_SetRenderDrawColor(renderer, 255, 200, 80, 255);
-                    break;
-                case ENTITY_POWERUP:
-                    SDL_SetRenderDrawColor(renderer, 80, 255, 80, 255);
-                    break;
-                default:
-                    SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
-            }
+            SDL_SetRenderDrawColor(renderer, base_color.r, base_color.g, base_color.b, 255);
             SDL_RenderFillRect(renderer, &rect);
         }
     }
@@ -240,6 +281,9 @@ int entity_check_collision(Entity* a, Entity* b) {
 
 void entity_take_damage(Entity* e, int damage, ParticleSystem* ps) {
     e->hp -= damage;
+    
+    // Trigger damage flash
+    e->damage_flash = 1.0f;
     
     // Spawn hit particles
     SDL_Color hit_color = {255, 200, 100, 200};
