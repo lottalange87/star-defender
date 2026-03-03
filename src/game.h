@@ -5,6 +5,7 @@
 #include "particle.h"
 #include "explosion.h"
 #include "projectile.h"
+#include "audio.h"
 #include <SDL.h>
 
 typedef enum {
@@ -28,6 +29,7 @@ typedef struct {
     ParticleSystem particles;
     ExplosionSystem explosions;
     ProjectileSystem projectiles_visual;
+    AudioSystem audio;
     Entity* player;
     
     // Sprites

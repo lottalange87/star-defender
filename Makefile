@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c99 -I/opt/homebrew/include -I/opt/homebrew/include/SDL2
-LDFLAGS = -L/opt/homebrew/lib -lSDL2 -lSDL2_image -lm
+LDFLAGS = -L/opt/homebrew/lib -lSDL2 -lSDL2_image -lSDL2_mixer -lm
 
 SRC_DIR = src
 OBJ_DIR = obj

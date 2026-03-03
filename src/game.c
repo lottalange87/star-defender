@@ -10,6 +10,10 @@ static Game* g_current_game = NULL;
 static void spawn_visual_wrapper(Vec2 pos, Vec2 vel, int type) {
     if (g_current_game) {
         projectile_spawn_visual(&g_current_game->projectiles_visual, pos, vel, type);
+        // Play enemy laser sound
+        if (type == 1) {
+            audio_play_sound(&g_current_game->audio, SOUND_LASER_ENEMY);
+        }
     }
 }
 
@@ -23,6 +27,9 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     explosion_system_init(&game->explosions);
     projectile_system_init(&game->projectiles_visual);
     explosion_system_load(&game->explosions, renderer);
+    
+    // Initialize audio
+    audio_init(&game->audio);
     
     // Set up visual projectile callback
     g_current_game = game;
@@ -80,6 +87,7 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
 }
 
 void game_shutdown(Game* game) {
+    audio_shutdown(&game->audio);
     sprite_free(game->sprite_player);
     sprite_free(game->sprite_enemy_normal);
     sprite_free(game->sprite_enemy_fast);
@@ -187,6 +195,7 @@ void game_update(Game* game, float dt) {
                     projectile_spawn_visual(&game->projectiles_visual,
                                     vec2(game->player->pos.x, game->player->pos.y - 16),
                                     vec2(0, -500.0f), 0);
+                    audio_play_sound(&game->audio, SOUND_LASER_PLAYER);
                     break;
                 case 2:
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
@@ -199,6 +208,7 @@ void game_update(Game* game, float dt) {
                     projectile_spawn_visual(&game->projectiles_visual,
                                     vec2(game->player->pos.x + 8, game->player->pos.y - 16),
                                     vec2(0, -500.0f), 0);
+                    audio_play_sound(&game->audio, SOUND_LASER_PLAYER);
                     break;
                 case 3:
                     projectile_spawn(&game->entities, ENTITY_PROJECTILE_PLAYER,
@@ -216,6 +226,7 @@ void game_update(Game* game, float dt) {
                     projectile_spawn_visual(&game->projectiles_visual,
                                     vec2(game->player->pos.x + 12, game->player->pos.y - 12),
                                     vec2(50.0f, -480.0f), 0);
+                    audio_play_sound(&game->audio, SOUND_LASER_PLAYER);
                     break;
             }
         }
@@ -345,6 +356,13 @@ void game_check_collisions(Game* game) {
                 
                 entity_take_damage(enemy, 1, &game->particles);
                 
+                // Play explosion sound
+                if (enemy->type == ENTITY_ENEMY_TANK) {
+                    audio_play_sound(&game->audio, SOUND_EXPLOSION_LARGE);
+                } else {
+                    audio_play_sound(&game->audio, SOUND_EXPLOSION_SMALL);
+                }
+                
                 if (!enemy->active) {
                     game->score += enemy->score_value;
                     
@@ -368,6 +386,7 @@ void game_check_collisions(Game* game) {
         if (game->player && game->player->active && entity_check_collision(proj, game->player)) {
             proj->active = 0;
             explosion_spawn(&game->explosions, game->player->pos, 0.8f);
+            audio_play_sound(&game->audio, SOUND_EXPLOSION_SMALL);
             entity_take_damage(game->player, 1, &game->particles);
             game->lives--;
             
