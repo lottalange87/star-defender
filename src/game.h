@@ -8,6 +8,9 @@
 #include "audio.h"
 #include "ui.h"
 #include "lootbox.h"
+#include "background.h"
+#include "menu.h"
+#include "transition.h"
 #include <SDL.h>
 
 typedef enum {
@@ -34,6 +37,10 @@ typedef struct {
     AudioSystem audio;
     UISystem ui;
     LootSystem loot;
+    Background background;
+    MenuSystem menu;
+    Transition transition;
+    int use_menu;  // 1 = show menu, 0 = direct to game
     Entity* player;
     
     // Sprites

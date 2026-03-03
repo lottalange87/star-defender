@@ -106,10 +106,37 @@ void ui_draw_hud(UISystem* ui, SDL_Renderer* renderer, int score, int lives,
     ui_draw_text(ui, renderer, "SCORE", 10, 10, white, 0);
     ui_draw_number(ui, renderer, score, 10, 28, cyan, 1);
     
-    // Lives - top right
-    char lives_text[32];
-    snprintf(lives_text, sizeof(lives_text), "LIVES: %d", lives);
-    ui_draw_text(ui, renderer, lives_text, screen_w - 100, 10, white, 0);
+    // Lives - hearts at top right
+    int heart_size = 16;
+    int heart_spacing = 20;
+    int hearts_start_x = screen_w - (lives * heart_spacing) - 20;
+    
+    for (int i = 0; i < lives; i++) {
+        int hx = hearts_start_x + i * heart_spacing;
+        int hy = 15;
+        
+        // Draw heart shape
+        SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
+        
+        // Top bumps
+        SDL_Rect left_bump = {hx, hy, 6, 6};
+        SDL_Rect right_bump = {hx + 6, hy, 6, 6};
+        SDL_RenderFillRect(renderer, &left_bump);
+        SDL_RenderFillRect(renderer, &right_bump);
+        
+        // Center
+        SDL_Rect center = {hx + 2, hy + 4, 8, 8};
+        SDL_RenderFillRect(renderer, &center);
+        
+        // Bottom point
+        SDL_Rect bottom = {hx + 4, hy + 10, 4, 4};
+        SDL_RenderFillRect(renderer, &bottom);
+        
+        // Heart shine
+        SDL_SetRenderDrawColor(renderer, 255, 150, 150, 255);
+        SDL_Rect shine = {hx + 2, hy + 2, 2, 2};
+        SDL_RenderFillRect(renderer, &shine);
+    }
     
     // Wave - center top
     char wave_text[32];
@@ -118,16 +145,25 @@ void ui_draw_hud(UISystem* ui, SDL_Renderer* renderer, int score, int lives,
     TTF_SizeText(ui->font_medium, wave_text, &wave_w, NULL);
     ui_draw_text(ui, renderer, wave_text, (screen_w - wave_w) / 2, 10, yellow, 1);
     
-    // Weapon level - bottom left
-    char weapon_text[32];
-    snprintf(weapon_text, sizeof(weapon_text), "WEAPON LVL %d", weapon_level);
-    ui_draw_text(ui, renderer, weapon_text, 10, 560, white, 0);
-    
-    // Weapon indicator bars
-    int bar_width = 20 * weapon_level;
+    // Weapon level - bottom left with icons
     SDL_SetRenderDrawColor(renderer, 100, 255, 100, 255);
-    SDL_Rect weapon_bar = {10, 580, bar_width, 8};
-    SDL_RenderFillRect(renderer, &weapon_bar);
+    ui_draw_text(ui, renderer, "WEAPON", 10, 545, white, 0);
+    
+    // Draw weapon level as bullet icons
+    for (int i = 0; i < weapon_level; i++) {
+        int bx = 10 + i * 25;
+        int by = 570;
+        
+        // Bullet icon
+        SDL_SetRenderDrawColor(renderer, 100, 255, 100, 255);
+        SDL_Rect bullet = {bx + 4, by, 6, 16};
+        SDL_RenderFillRect(renderer, &bullet);
+        
+        // Glow
+        SDL_SetRenderDrawColor(renderer, 100, 255, 100, 100);
+        SDL_Rect glow = {bx + 2, by - 2, 10, 20};
+        SDL_RenderFillRect(renderer, &glow);
+    }
 }
 
 void ui_draw_menu(UISystem* ui, SDL_Renderer* renderer, int screen_w, int screen_h) {

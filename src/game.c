@@ -32,6 +32,10 @@ int game_init(Game* game, int screen_w, int screen_h, SDL_Renderer* renderer) {
     audio_init(&game->audio);
     ui_init(&game->ui);
     loot_system_init(&game->loot);
+    background_init(&game->background, screen_w, screen_h);
+    menu_init(&game->menu, screen_w, screen_h);
+    transition_init(&game->transition);
+    game->use_menu = 1;
     
     // Set up visual projectile callback
     g_current_game = game;
@@ -126,6 +130,54 @@ void game_reset(Game* game) {
 void game_handle_input(Game* game, SDL_Event* event) {
     int down = (event->type == SDL_KEYDOWN);
     
+    // Menu input handling
+    if (game->state == STATE_MENU && game->use_menu) {
+        if (down) {
+            switch (event->key.keysym.scancode) {
+                case SDL_SCANCODE_UP:
+                case SDL_SCANCODE_W:
+                    menu_move_up(&game->menu);
+                    break;
+                case SDL_SCANCODE_DOWN:
+                case SDL_SCANCODE_S:
+                    menu_move_down(&game->menu);
+                    break;
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_SPACE:
+                    {
+                        MenuItem selected = menu_select(&game->menu);
+                        switch (selected) {
+                            case MENU_ITEM_SINGLE_PLAYER:
+                                game->use_menu = 0;
+                                game->state = STATE_PLAYING;
+                                game_reset(game);
+                                transition_start(&game->transition, TRANSITION_STAR_WARP, 0.5f);
+                                break;
+                            case MENU_ITEM_TWO_PLAYER:
+                                // TODO: Implement two player mode
+                                game->use_menu = 0;
+                                game->state = STATE_PLAYING;
+                                game_reset(game);
+                                break;
+                            case MENU_ITEM_QUIT:
+                                // Handle quit in main loop
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    break;
+                case SDL_SCANCODE_ESCAPE:
+                    // Handle quit
+                    break;
+                default:
+                    break;
+            }
+        }
+        return; // Don't process game input in menu
+    }
+    
+    // Game input handling
     switch (event->key.keysym.scancode) {
         case SDL_SCANCODE_LEFT:
         case SDL_SCANCODE_A:
@@ -147,11 +199,10 @@ void game_handle_input(Game* game, SDL_Event* event) {
             game->key_shoot = down;
             break;
         case SDL_SCANCODE_RETURN:
-            if (down && game->state == STATE_MENU) {
-                game->state = STATE_PLAYING;
-            } else if (down && game->state == STATE_GAMEOVER) {
+            if (down && game->state == STATE_GAMEOVER) {
                 game_reset(game);
                 game->state = STATE_PLAYING;
+                transition_start(&game->transition, TRANSITION_FADE_IN, 0.3f);
             }
             break;
         case SDL_SCANCODE_ESCAPE:
@@ -283,63 +334,51 @@ void game_update(Game* game, float dt) {
     explosion_update(&game->explosions, dt);
     projectile_update_visuals(&game->projectiles_visual, dt);
     loot_update(&game->loot, dt, &game->entities, &game->particles);
+    background_update(&game->background, dt, game->screen_width, game->screen_height);
+    transition_update(&game->transition, dt);
     
-    for (int i = 0; i < 100; i++) {
-        game->stars[i].y += game->stars[i].speed * dt;
-        if (game->stars[i].y > game->screen_height) {
-            game->stars[i].y = 0;
-            game->stars[i].x = rand() % game->screen_width;
-        }
+    // Update menu if active
+    if (game->state == STATE_MENU && game->use_menu) {
+        menu_update(&game->menu, dt);
     }
     
     game_check_collisions(game);
 }
 
 void game_draw(Game* game, SDL_Renderer* renderer) {
-    SDL_SetRenderDrawColor(renderer, 5, 5, 15, 255);
-    SDL_RenderClear(renderer);
-    
-    // Stars
-    for (int i = 0; i < 100; i++) {
-        int alpha = 100 + (int)(game->stars[i].speed * 1.5f);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, alpha > 255 ? 255 : alpha);
-        SDL_Rect star = {(int)game->stars[i].x, (int)game->stars[i].y, 
-                        game->stars[i].size, game->stars[i].size};
-        SDL_RenderFillRect(renderer, &star);
-    }
-    
-    // Assign sprites to projectiles before drawing
-    for (int i = 0; i < MAX_PROJECTILES; i++) {
-        Entity* p = &game->entities.projectiles[i];
-        if (p->active && !p->sprite) {
-            p->sprite = (p->type == ENTITY_PROJECTILE_PLAYER) 
-                ? game->sprite_projectile_player 
-                : game->sprite_projectile_enemy;
+    // Draw based on state
+    if (game->state == STATE_MENU && game->use_menu) {
+        // Draw menu with animated background
+        menu_draw(&game->menu, renderer, game->screen_width, game->screen_height);
+    } else {
+        // Draw game with new background
+        background_draw(&game->background, renderer, game->screen_width, game->screen_height);
+        
+        // Draw game entities
+        entity_draw(&game->entities, renderer);
+        loot_draw(&game->loot, renderer);
+        projectile_draw_visuals(&game->projectiles_visual, renderer);
+        particle_draw(&game->particles, renderer);
+        explosion_draw(&game->explosions, renderer);
+        
+        // HUD
+        if (game->state == STATE_PLAYING) {
+            ui_draw_hud(&game->ui, renderer, game->score, game->lives, 
+                       game->wave, game->player ? game->player->weapon_level : 1,
+                       game->screen_width);
+        }
+        
+        // Overlay screens
+        if (game->state == STATE_GAMEOVER) {
+            ui_draw_gameover(&game->ui, renderer, game->score, 
+                            game->screen_width, game->screen_height);
+        } else if (game->state == STATE_PAUSE) {
+            ui_draw_pause(&game->ui, renderer, game->screen_width, game->screen_height);
         }
     }
     
-    entity_draw(&game->entities, renderer);
-    loot_draw(&game->loot, renderer);
-    projectile_draw_visuals(&game->projectiles_visual, renderer);
-    particle_draw(&game->particles, renderer);
-    explosion_draw(&game->explosions, renderer);
-    
-    // HUD with new UI system
-    if (game->state == STATE_PLAYING) {
-        ui_draw_hud(&game->ui, renderer, game->score, game->lives, 
-                   game->wave, game->player ? game->player->weapon_level : 1,
-                   game->screen_width);
-    }
-    
-    // Menu / Game Over / Pause screens
-    if (game->state == STATE_MENU) {
-        ui_draw_menu(&game->ui, renderer, game->screen_width, game->screen_height);
-    } else if (game->state == STATE_GAMEOVER) {
-        ui_draw_gameover(&game->ui, renderer, game->score, 
-                        game->screen_width, game->screen_height);
-    } else if (game->state == STATE_PAUSE) {
-        ui_draw_pause(&game->ui, renderer, game->screen_width, game->screen_height);
-    }
+    // Draw transition effect
+    transition_draw(&game->transition, renderer, game->screen_width, game->screen_height);
 }
 
 void game_check_collisions(Game* game) {
